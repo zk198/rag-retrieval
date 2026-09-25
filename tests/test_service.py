@@ -121,7 +121,8 @@ def test_hydrate_batches_parent_lookups(monkeypatch):
     }
     result = service._hydrate(["t1:7"], payloads, {"t1:7": 0.1}, "t1", "u1")
 
-    assert result[0]["parent_kind"] == "message"\n    assert result[0]["parent"]["subject"] == "Test"
+    assert result[0]["parent_kind"] == "message"
+    assert result[0]["parent"]["subject"] == "Test"
     assert len(calls) == 1
     assert "ANY(%s)" in calls[0][0]
 
