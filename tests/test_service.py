@@ -62,13 +62,13 @@ def test_filter_always_contains_tenant_and_optional_user():
     assert scoped.must[1].key == "user_id"
 
 
-def test_search_uses_named_dense_and_sparse_query_points(monkeypatch):
+def test_search_uses_named_dense_and_sparse_query_points():
     service = make_service()
     service._hydrate = lambda ids, payloads, scores, tenant, user: ids
 
     result = service.search("hello", "t1", "u1", 5)
 
-    assert result == ["t1:7", "t1:7"]
+    assert result == ["t1:7"]
     assert len(service.qdrant.calls) == 2
     assert {call["using"] for call in service.qdrant.calls} == {"dense", "sparse"}
     assert all(call["query_filter"].must[0].key == "tenant_id" for call in service.qdrant.calls)
