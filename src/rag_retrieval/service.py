@@ -139,6 +139,7 @@ class RetrievalService:
             out.append(
                 {
                     "chunk_id": payload.get("chunk_id"),
+                    "parent_kind": payload.get("parent_kind"),
                     "score": scores[point_id],
                     "text": payload.get("text"),
                     "source_name": payload.get("source_name"),
