@@ -19,8 +19,8 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
 
 
-@app.get("/healthz")
-def healthz():
+@app.get("/health")
+def health():
     return {"status": "ok"}
 
 
