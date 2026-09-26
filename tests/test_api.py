@@ -16,7 +16,7 @@ def test_health_does_not_initialize_retrieval_service(monkeypatch):
     api._service = None
     client = TestClient(api.app)
 
-    response = client.get("/healthz")
+    response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
