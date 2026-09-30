@@ -7,49 +7,26 @@ import psycopg
 from psycopg.rows import dict_row
 from fastembed import SparseTextEmbedding, TextEmbedding
 from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    FieldCondition,
-    Filter,
-    MatchValue,
-    SparseVector,
-)
+from qdrant_client.models import FieldCondition, Filter, MatchValue, SparseVector
 
 
 class RetrievalService:
     def __init__(self):
         self.db = os.environ["RAG_POSTGRES_DSN"]
-        self.qdrant = QdrantClient(
-            url=os.getenv("RAG_QDRANT_URL", "http://qdrant:6333")
-        )
+        self.qdrant = QdrantClient(url=os.environ["RAG_QDRANT_URL"])
         self.collection = os.getenv("RAG_QDRANT_COLLECTION", "rag_chunks")
-        self.dense_model = os.getenv(
-            "RAG_DENSE_MODEL", "BAAI/bge-small-en-v1.5"
-        )
+        self.dense_model = os.getenv("RAG_DENSE_MODEL", "BAAI/bge-small-en-v1.5")
         self.sparse_model = os.getenv("RAG_SPARSE_MODEL", "Qdrant/bm25")
         self.dense = TextEmbedding(model_name=self.dense_model, lazy_load=True)
-        self.sparse = SparseTextEmbedding(
-            model_name=self.sparse_model, lazy_load=True
-        )
+        self.sparse = SparseTextEmbedding(model_name=self.sparse_model, lazy_load=True)
 
     def _filter(self, tenant_id: str, user_id: str | None) -> Filter:
-        conditions = [
-            FieldCondition(
-                key="tenant_id", match=MatchValue(value=tenant_id)
-            )
-        ]
+        conditions = [FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
         if user_id:
-            conditions.append(
-                FieldCondition(key="user_id", match=MatchValue(value=user_id))
-            )
+            conditions.append(FieldCondition(key="user_id", match=MatchValue(value=user_id)))
         return Filter(must=conditions)
 
-    def search(
-        self,
-        query: str,
-        tenant_id: str,
-        user_id: str | None,
-        limit: int = 10,
-    ):
+    def search(self, query: str, tenant_id: str, user_id: str | None, limit: int = 10):
         if not tenant_id:
             raise ValueError("tenant_id is required")
         if not query or not query.strip():
@@ -61,23 +38,13 @@ class RetrievalService:
         candidate_limit = max(limit * 4, 20)
 
         dense_hits = self.qdrant.query_points(
-            collection_name=self.collection,
-            query=dense,
-            using="dense",
-            query_filter=scope,
-            limit=candidate_limit,
-            with_payload=True,
+            collection_name=self.collection, query=dense, using="dense",
+            query_filter=scope, limit=candidate_limit, with_payload=True,
         ).points
         sparse_hits = self.qdrant.query_points(
             collection_name=self.collection,
-            query=SparseVector(
-                indices=sparse.indices.tolist(),
-                values=sparse.values.tolist(),
-            ),
-            using="sparse",
-            query_filter=scope,
-            limit=candidate_limit,
-            with_payload=True,
+            query=SparseVector(indices=sparse.indices.tolist(), values=sparse.values.tolist()),
+            using="sparse", query_filter=scope, limit=candidate_limit, with_payload=True,
         ).points
 
         scores = defaultdict(float)
@@ -132,18 +99,13 @@ class RetrievalService:
         for point_id in ids:
             payload = payloads[point_id]
             parent_id = str(payload["parent_id"])
-            if payload.get("parent_kind") == "message":
-                parent = messages.get(parent_id)
-            else:
-                parent = documents.get(parent_id)
-            out.append(
-                {
-                    "chunk_id": payload.get("chunk_id"),
-                    "parent_kind": payload.get("parent_kind"),
-                    "score": scores[point_id],
-                    "text": payload.get("text"),
-                    "source_name": payload.get("source_name"),
-                    "parent": parent,
-                }
-            )
+            parent = messages.get(parent_id) if payload.get("parent_kind") == "message" else documents.get(parent_id)
+            out.append({
+                "chunk_id": payload.get("chunk_id"),
+                "parent_kind": payload.get("parent_kind"),
+                "score": scores[point_id],
+                "text": payload.get("text"),
+                "source_name": payload.get("source_name"),
+                "parent": parent,
+            })
         return out
